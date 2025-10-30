@@ -1,0 +1,9 @@
+flask
+requests
+pytesseract
+pdfplumber
+spacy
+python-dotenv
+Pillow
+numpy
+# spaCy model will be installed separately: e.g. python -m spacy download en_core_web_sm
