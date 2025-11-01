@@ -1,0 +1,2055 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent College Admission System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- ADDED: Chart.js library for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .page {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        .active-page {
+            display: block;
+        }
+        
+        /* NEW: Styles for form steps */
+        .form-step {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+        .form-step.active-step {
+            display: block;
+        }
+        /* Hide native validation bubbles */
+        input:invalid, select:invalid, textarea:invalid {
+            box-shadow: none;
+        }
+        /* Custom validation style */
+        .was-validated input:invalid,
+        .was-validated select:invalid,
+        .was-validated textarea:invalid {
+             border-color: #ef4444; /* red-500 */
+        }
+        /* Custom validation for doc upload */
+        .doc-invalid {
+            border: 2px solid #ef4444; /* red-500 */
+            border-radius: 0.5rem; /* rounded-lg */
+        }
+
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Chatbot Styles */
+        #chat-bubble {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            width: 4rem;
+            height: 4rem;
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+            z-index: 40;
+        }
+        #chat-bubble:hover {
+            background-color: #4338ca; /* indigo-700 */
+            transform: scale(1.1);
+        }
+        #chat-window {
+            position: fixed;
+            bottom: 7rem;
+            right: 2rem;
+            width: 380px;
+            height: 500px;
+            background-color: white;
+            border-radius: 0.75rem; /* rounded-xl */
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            opacity: 0;
+            transform: translateY(20px);
+            z-index: 50;
+        }
+        #chat-window.active {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .chat-header {
+            background-color: #4f46e5; /* indigo-600 */
+            color: white;
+            padding: 1rem;
+            font-weight: 600;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+        .chat-message {
+            max-width: 80%;
+            padding: 0.75rem;
+            border-radius: 0.75rem; /* rounded-lg */
+            word-wrap: break-word;
+        }
+        .chat-message.user {
+            background-color: #eef2ff; /* indigo-50 */
+            color: #3730a3; /* indigo-800 */
+            align-self: flex-end;
+            border-bottom-right-radius: 0.25rem;
+        }
+        .chat-message.bot {
+            background-color: #f3f4f6; /* gray-100 */
+            color: #1f2937; /* gray-800 */
+            align-self: flex-start;
+            border-bottom-left-radius: 0.25rem;
+        }
+        .chat-message.bot.typing {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #9ca3af; /* gray-400 */
+            border-radius: 50%;
+            animation: bounce 1.4s infinite both;
+        }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        .chat-input {
+            border-top: 1px solid #e5e7eb; /* gray-200 */
+            padding: 1rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+        .chat-suggestion-chips {
+            padding: 0.5rem 1rem;
+            border-top: 1px solid #e5e7eb; /* gray-200 */
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .chip {
+            background-color: #f3f4f6; /* gray-100 */
+            color: #4f46e5; /* indigo-600 */
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px; /* rounded-full */
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .chip:hover {
+            background-color: #e5e7eb; /* gray-200 */
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 md:p-8 max-w-5xl">
+
+        <!-- Header and Navigation -->
+        <header class="bg-white rounded-xl shadow-md p-6 mb-8">
+            <div class="flex flex-col md:flex-row justify-between items-center">
+                <div>
+                    <h1 class="text-3xl font-bold text-indigo-600">Smart Admission System</h1>
+                    <p class="text-gray-500">Institute of Engineering and Technology</p>
+                </div>
+                <nav class="mt-4 md:mt-0">
+                    <button id="student-portal-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition duration-300 mr-2">Student Portal</button>
+                    <button id="admin-portal-btn" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg shadow hover:bg-gray-300 transition duration-300">Admin Portal</button>
+                    <span id="db-status" class="ml-4 inline-flex items-center text-sm text-gray-600"></span>
+                    <button id="db-test-btn" class="ml-2 px-3 py-1 text-sm bg-indigo-50 text-indigo-700 rounded-md border">Test DB</button>
+                    <!-- Admin login / Sign-out controls -->
+                    <button id="auth-btn" class="ml-4 px-3 py-1 rounded-md bg-indigo-50 text-indigo-700">Admin login</button>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <main>
+            <!-- Student Application Page -->
+            <div id="student-page" class="page active-page">
+                <div class="bg-white rounded-xl shadow-md p-8">
+                    <h2 class="text-2xl font-semibold mb-6 border-b pb-4">New Student Application</h2>
+                    
+                    <!-- NEW: Step Indicator -->
+                    <div class="mb-6">
+                        <div class="flex items-center justify-center">
+                            <div class="flex items-center">
+                                <div id="step-1-indicator" class="w-10 h-10 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold">1</div>
+                                <span class="ml-2 font-semibold text-indigo-600">Personal</span>
+                            </div>
+                            <div class="flex-1 h-0.5 bg-gray-300 mx-4"></div>
+                            <div class="flex items-center">
+                                <div id="step-2-indicator" class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">2</div>
+                                <span class="ml-2 font-semibold text-gray-600">Academics</span>
+                            </div>
+                            <div class="flex-1 h-0.5 bg-gray-300 mx-4"></div>
+                            <div class="flex items-center">
+                                <div id="step-3-indicator" class="w-10 h-10 rounded-full bg-gray-300 text-gray-600 flex items-center justify-center font-bold">3</div>
+                                <span class="ml-2 font-semibold text-gray-600">Questions</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add was-validated class on submit attempt -->
+                    <form id="admission-form">
+                        
+                        <!-- STEP 1: Personal & Academic Details -->
+                        <div id="form-step-1" class="form-step active-step">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Step 1: Personal & Academic Details</h3>
+                            <!-- Personal Details -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label for="fullName" class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                    <input type="text" id="fullName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                </div>
+                                <div>
+                                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                                    <input type="email" id="email" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                </div>
+                                <div>
+                                    <label for="dob" class="block text-sm font-medium text-gray-700 mb-1">Date of Birth</label>
+                                    <input type="date" id="dob" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                </div>
+                                <div>
+                                    <label for="phone" class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                                    <input type="tel" id="phone" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                </div>
+                            </div>
+
+                            <!-- Academic Details -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label for="grade10" class="block text-sm font-medium text-gray-700 mb-1">10th Grade Percentage</label>
+                                    <input type="number" id="grade10" step="0.01" min="0" max="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                </div>
+                                <div>
+                                    <label for="grade12" class="block text-sm font-medium text-gray-700 mb-1">12th Grade Percentage</label>
+                                    <input type="number" id="grade12" step="0.01" min="0" max="100" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                </div>
+                                <div>
+                                    <label for="cet" class="block text-sm font-medium text-gray-700 mb-1">CET Marks (score or percentage)</label>
+                                    <input type="number" id="cet" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. 85.5">
+                                </div>
+                                <div>
+                                    <label for="jee" class="block text-sm font-medium text-gray-700 mb-1">JEE Score</label>
+                                    <input type="number" id="jee" step="0.01" min="0" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="e.g. 120.5">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- STEP 2: Branch & Document Upload -->
+                        <div id="form-step-2" class="form-step">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4">Step 2: Branch & Document Upload</h3>
+                            <!-- Branch and Specialization Selection -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6 border-t pt-6">
+                                <div>
+                                    <label for="branch-select" class="block text-sm font-medium text-gray-700 mb-1">Select Branch</label>
+                                    <select id="branch-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" required>
+                                        <option value="" disabled selected>-- Choose a Branch --</option>
+                                        <option value="CSE">Computer Science and Engineering (CSE)</option>
+                                        <option value="ME">Mechanical Engineering (ME)</option>
+                                        <option value="EE">Electrical Engineering (EE)</option>
+                                        <option value="CE">Civil Engineering (CE)</option>
+                                        <option value="ChemE">Chemical Engineering</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="specialization-select" class="block text-sm font-medium text-gray-700 mb-1">Select Specialization</label>
+                                    <select id="specialization-select" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 bg-gray-50" disabled required>
+                                        <option value="" disabled selected>-- Select Branch First --</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- Document Upload with NEW Digilocker Option -->
+                            <div id="doc-verification-container" class="bg-indigo-50 border-l-4 border-indigo-500 p-4 rounded-lg mb-6">
+                                <h3 class="text-lg font-semibold mb-2 text-indigo-800">Intelligent Document Verification</h3>
+                                <p class="text-sm text-indigo-700 mb-4">Upload your 12th-grade marksheet *or* fetch it from Digilocker for instant verification.</p>
+                                
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+                                    <div>
+                                        <label for="document-upload" class="block text-sm font-medium text-gray-700 mb-1">Option 1: Upload Manually</label>
+                                        <input type="file" id="document-upload" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" accept="image/png, image/jpeg, application/pdf">
+                                    </div>
+                                    <div class="md:border-l md:pl-4">
+                                        <label for="digilocker-btn" class="block text-sm font-medium text-gray-700 mb-1">Option 2: Use Digilocker (Recommended)</label>
+                                        <button type="button" id="digilocker-btn" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg shadow hover:bg-blue-700 transition duration-300">
+                                            Fetch Verified Marksheet
+                                        </button>
+                                    </div>
+                                </div>
+                                <div id="verification-status" class="flex items-center space-x-2 mt-4"></div>
+
+                                <!-- Other Marksheets (unchanged) -->
+                                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+                                    <div>
+                                        <label for="cet-marksheet-upload" class="block text-sm font-medium text-indigo-700 mb-1">CET Marksheet (Optional)</label>
+                                        <input type="file" id="cet-marksheet-upload" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" accept="image/png, image/jpeg, application/pdf">
+                                    </div>
+                                    <div>
+                                        <label for="jee-marksheet-upload" class="block text-sm font-medium text-indigo-700 mb-1">JEE Marksheet (Optional)</label>
+                                        <input type="file" id="jee-marksheet-upload" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200" accept="image/png, image/jpeg, application/pdf">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <!-- STEP 3: Personal Questions -->
+                        <div id="form-step-3" class="form-step">
+                            <h3 class="text-lg font-semibold text-gray-900 mb-4 pt-6 border-t">Step 3: Personal Questions</h3>
+                            <div class="space-y-6">
+                                <div>
+                                    <label for="q1_interest" class="block text-sm font-medium text-gray-700 mb-1">Describe a project, activity, or problem that made you lose track of time while working on it. (Used for interest prediction)</label>
+                                    <textarea id="q1_interest" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="What was it? What made it so engaging?..." required></textarea>
+                                </div>
+                                <div>
+                                    <label for="q2_project" class="block text-sm font-medium text-gray-700 mb-1">What type of problems excite you the most — designing solutions, understanding how things work, or optimizing systems? Please give an example.</label>
+                                    <textarea id="q2_project" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Tell us about what problems you find interesting..." required></textarea>
+                                </div>
+                                <div>
+                                    <label for="q3_goals" class="block text-sm font-medium text-gray-700 mb-1">What school subjects or topics make you curious to learn more, even outside of your required textbooks?</label>
+                                    <textarea id="q3_goals" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="What do you learn about in your free time?..." required></textarea>
+                                </div>
+                                <!-- NEW QUESTION 4 -->
+                                <div>
+                                    <label for="q4_teamrole" class="block text-sm font-medium text-gray-700 mb-1">When working in a team, which role do you naturally take — planner, designer, coder, or analyst? Why?</label>
+                                    <textarea id="q4_teamrole" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Tell us about your role in a team..." required></textarea>
+                                </div>
+                                <!-- NEW QUESTION 5 -->
+                                <div>
+                                    <label for="q5_invention" class="block text-sm font-medium text-gray-700 mb-1">If given unlimited resources, what kind of invention or innovation would you like to create to solve a real-world problem?</label>
+                                    <textarea id="q5_invention" rows="3" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="What would you build and why?..." required></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button & Navigation -->
+                        <div class="mt-8 pt-6 border-t flex justify-between items-center">
+                            <button type="button" id="prev-btn" class="px-6 py-3 bg-gray-300 text-gray-800 font-semibold rounded-lg shadow-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                                Previous
+                            </button>
+                            <button type="button" id="next-btn" class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-transform transform hover:scale-105">
+                                Next
+                            </button>
+                            <button type="submit" id="submit-btn" class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-transform transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed" style="display: none;">
+                                Submit Application
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Admin Dashboard Page -->
+            <div id="admin-page" class="page">
+                <div class="bg-white rounded-xl shadow-md p-8">
+                    <div class="flex flex-col md:flex-row justify-between items-center mb-6 border-b pb-4">
+                        <h2 class="text-2xl font-semibold">Admin Dashboard (Real-time)</h2>
+                        <button id="generate-merit-list-btn" class="mt-4 md:mt-0 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg shadow hover:bg-green-700 transition">Generate Merit List</button>
+                    </div>
+
+                    <!-- NEW: Statistics Section -->
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-3">Application Statistics</h3>
+                        <!-- UPDATED: Grid layout for stats and charts (now 3 cols) -->
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Stats Cards (col-span-1) -->
+                            <div class="grid grid-cols-2 gap-4">
+                                <!-- Total Applications -->
+                                <div class="bg-indigo-50 p-4 rounded-lg shadow col-span-2">
+                                    <div class="text-sm font-medium text-indigo-600">Total Applications</div>
+                                    <div id="stats-total" class="text-3xl font-bold text-indigo-900">0</div>
+                                </div>
+                                <!-- CSE -->
+                                <div class="bg-blue-50 p-4 rounded-lg shadow">
+                                    <div class="text-sm font-medium text-blue-600">CSE</div>
+                                    <div id="stats-cse" class="text-3xl font-bold text-blue-900">0</div>
+                                </div>
+                                <!-- ME -->
+                                <div class="bg-gray-50 p-4 rounded-lg shadow">
+                                    <div class="text-sm font-medium text-gray-600">Mechanical (ME)</div>
+                                    <div id="stats-me" class="text-3xl font-bold text-gray-900">0</div>
+                                </div>
+                                <!-- EE -->
+                                <div class="bg-yellow-50 p-4 rounded-lg shadow">
+                                    <div class="text-sm font-medium text-yellow-600">Electrical (EE)</div>
+                                    <div id="stats-ee" class="text-3xl font-bold text-yellow-900">0</div>
+                                </div>
+                                <!-- CE -->
+                                <div class="bg-green-50 p-4 rounded-lg shadow">
+                                    <div class="text-sm font-medium text-green-600">Civil (CE)</div>
+                                    <div id="stats-ce" class="text-3xl font-bold text-green-900">0</div>
+                                </div>
+                                <!-- ChemE -->
+                                <div class="bg-red-50 p-4 rounded-lg shadow">
+                                    <div class="text-sm font-medium text-red-600">Chemical (ChemE)</div>
+                                    <div id="stats-cheme" class="text-3xl font-bold text-red-900">0</div>
+                                </div>
+                                <!-- Other -->
+                                <div class="bg-purple-50 p-4 rounded-lg shadow">
+                                    <div class="text-sm font-medium text-purple-600">Other</div>
+                                    <div id="stats-other" class="text-3xl font-bold text-purple-900">0</div>
+                                </div>
+                            </div>
+                            <!-- Branch Distribution Chart (col-span-1) -->
+                            <div class="bg-white p-4 rounded-lg shadow flex items-center justify-center">
+                                <canvas id="branch-chart"></canvas>
+                            </div>
+                            <!-- NEW: Status Distribution Chart (col-span-1) -->
+                            <div class="bg-white p-4 rounded-lg shadow flex items-center justify-center">
+                                <canvas id="status-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NEW: Search and Filter Bar -->
+                    <div class="mb-4">
+                        <label for="search-input" class="block text-sm font-medium text-gray-700 mb-1">Search Applications</label>
+                        <input type="text" id="search-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Search by name or email...">
+                    </div>
+                    <!-- NEW: Filter Dropdowns -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">
+                        <div>
+                            <label for="filter-status" class="block text-sm font-medium text-gray-700 mb-1">Filter by Status</label>
+                            <select id="filter-status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">All Statuses</option>
+                                <option value="Auto-Processed">Auto-Processed</option>
+                                <option value="Verified">Verified</option>
+                                <option value="Manual Review">Manual Review</option>
+                                <option value="Pending Auto-Verification">Processing...</option>
+                                <option value="Accepted">Accepted</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="filter-branch" class="block text-sm font-medium text-gray-700 mb-1">Filter by Branch</label>
+                            <select id="filter-branch" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                <option value="">All Branches</option>
+                                <option value="CSE">CSE</option>
+                                <option value="ME">Mechanical (ME)</option>
+                                <option value="EE">Electrical (EE)</option>
+                                <option value="CE">Civil (CE)</option>
+                                <option value="ChemE">Chemical (ChemE)</option>
+                            </select>
+                        </div>
+                    </div>
+
+
+                    <!-- Applications Table -->
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Applicant Name</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Branch / Specialization</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">12th Grade %</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">CET</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JEE</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verification</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Predicted Interest</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="applications-table-body" class="divide-y divide-gray-200">
+                                <!-- Loading or data rows will be inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <!-- Merit List Modal -->
+                <div id="merit-list-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+                       <div class="bg-white rounded-xl shadow-2xl p-8 max-w-lg w-full transform transition-all scale-95 opacity-0">
+                           <div class="flex justify-between items-center mb-4">
+                               <h3 class="text-xl font-bold text-gray-800">Generated Merit List</h3>
+                               <button id="close-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+                           </div>
+                           <div id="merit-list-content" class="max-h-96 overflow-y-auto"></div>
+                       </div>
+                </div>
+
+                <!-- NEW: Edit Application Modal -->
+                <div id="edit-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+                   <div class="bg-white rounded-xl shadow-2xl p-8 max-w-lg w-full transform transition-all scale-95 opacity-0">
+                       <div class="flex justify-between items-center mb-4">
+                           <h3 class="text-xl font-bold text-gray-800">Edit Application</h3>
+                           <button id="close-edit-modal-btn" class="text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+                       </div>
+                       <form id="edit-form" class="space-y-4">
+                           <input type="hidden" id="edit-app-id"> <!-- IMPORTANT: To know which app to update -->
+                           <div>
+                               <label for="edit-fullName" class="block text-sm font-medium text-gray-700">Full Name</label>
+                               <input type="text" id="edit-fullName" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                           </div>
+                           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div>
+                                   <label for="edit-grade12" class="block text-sm font-medium text-gray-700">12th Grade %</label>
+                                   <input type="number" step="0.01" id="edit-grade12" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                               </div>
+                               <div>
+                                   <label for="edit-cet" class="block text-sm font-medium text-gray-700">CET</label>
+                                   <input type="number" step="0.01" id="edit-cet" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                               </div>
+                               <div>
+                                   <label for="edit-jee" class="block text-sm font-medium text-gray-700">JEE</label>
+                                   <input type="number" step="0.01" id="edit-jee" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                               </div>
+                           </div>
+                           <div>
+                               <label for="edit-status" class="block text-sm font-medium text-gray-700">Status</label>
+                               <select id="edit-status" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500">
+                                   <!-- Options will be populated by JS -->
+                               </select>
+                           </div>
+                           <!-- NEW: Show question answers in modal -->
+                           <div id="edit-questions-container" class="space-y-2 max-h-40 overflow-y-auto bg-gray-50 p-3 rounded-lg">
+                                <!-- Questions will be populated here -->
+                           </div>
+                           <div class="text-right space-x-2">
+                               <button type="button" id="cancel-edit-btn" class="px-6 py-2 bg-gray-200 text-gray-800 font-semibold rounded-lg shadow-md hover:bg-gray-300">Cancel</button>
+                               <button type="submit" class="px-6 py-2 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700">Save Changes</button>
+                           </div>
+                       </form>
+                   </div>
+                </div>
+
+            </div>
+        </main>
+        
+        <div id="toast" class="fixed bottom-10 right-10 bg-green-500 text-white py-3 px-6 rounded-lg shadow-xl transform translate-y-20 opacity-0 transition-all duration-500 z-50"></div>
+
+    </div>
+
+    <!-- Chatbot UI -->
+    <div id="chat-bubble">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.54 15.01 3 13.554 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        </svg>
+    </div>
+    <div id="chat-window">
+        <div class="chat-header">
+            <span>AI Admission Assistant</span>
+            <button id="close-chat-btn" class="text-white">&times;</button>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            <div class="chat-message bot">
+                Hello! I'm the AI Admission Assistant for the Institute of Engineering and Technology. How can I help you today?
+            </div>
+        </div>
+        <div class="chat-suggestion-chips" id="chat-suggestion-chips">
+            <div class="chip" data-question="What branches are offered?">What branches are offered?</div>
+            <div class="chip" data-question="What are the specializations for CSE?">CSE Specializations?</div>
+            <div class="chip" data-question="What is the admission process?">Admission process?</div>
+        </div>
+        <div class="chat-input">
+            <input type="text" id="chat-input" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500" placeholder="Type your question...">
+            <button id="chat-send-btn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition duration-300">Send</button>
+        </div>
+    </div>
+    <!-- End Chatbot UI -->
+
+
+    <!-- Import and configure Supabase + App logic -->
+    <script type="module">
+        // Import Supabase
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js/+esm';
+
+        // --- CHATBOT GLOBAL - MOVED FOR INITIALIZATION FIX ---
+        let chatHistory = [];
+
+        // --- (NEW) SET YOUR PYTHON ANYWHERE BACKEND URL ---
+        // --- Replace 'your-username' with your actual PythonAnywhere username ---
+        const PYTHON_WORKER_URL = 'https://your-username.pythonanywhere.com/process';
+
+        // --- IMPORTANT: SUPABASE CONFIGURATION ---
+        const defaultSupabaseConfig = {
+            url: 'https://nggovlnjqyytwtvbdgyb.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5nZ292bG5qcXl5dHd0dmJkZ3liIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEwMjQ3NjksImV4cCI6MjA3NjYwMDc2OX0.wAujrPGoZ_7aJ2CM72lZCxHnqn8O_2VOSfosMdy2cPA'
+        };
+
+        const finalSupabaseConfig = typeof __supabase_config !== 'undefined' ? JSON.parse(__supabase_config) : defaultSupabaseConfig;
+
+        // Initialize Supabase client
+        const supabase = createClient(finalSupabaseConfig.url, finalSupabaseConfig.anonKey);
+
+        // --- DOM ELEMENT REFERENCES ---
+        const studentPage = document.getElementById('student-page');
+        const adminPage = document.getElementById('admin-page');
+        const studentPortalBtn = document.getElementById('student-portal-btn');
+        const adminPortalBtn = document.getElementById('admin-portal-btn');
+        const admissionForm = document.getElementById('admission-form');
+        const documentUpload = document.getElementById('document-upload');
+        const cetMarksheetUpload = document.getElementById('cet-marksheet-upload');
+        const jeeMarksheetUpload = document.getElementById('jee-marksheet-upload');
+        const verificationStatus = document.getElementById('verification-status');
+        const applicationsTableBody = document.getElementById('applications-table-body');
+        const generateMeritListBtn = document.getElementById('generate-merit-list-btn');
+        const meritListModal = document.getElementById('merit-list-modal');
+        const meritListContent = document.getElementById('merit-list-content');
+        const closeModalBtn = document.getElementById('close-modal-btn');
+        const toast = document.getElementById('toast');
+        const submitBtn = document.getElementById('submit-btn');
+        const dbStatus = document.getElementById('db-status');
+        const dbTestBtn = document.getElementById('db-test-btn');
+        const branchSelect = document.getElementById('branch-select');
+        const specializationSelect = document.getElementById('specialization-select');
+        
+        // Stats elements
+        const statsTotal = document.getElementById('stats-total');
+        const statsCse = document.getElementById('stats-cse');
+        const statsMe = document.getElementById('stats-me');
+        const statsEe = document.getElementById('stats-ee');
+        const statsCe = document.getElementById('stats-ce');
+        const statsChemE = document.getElementById('stats-cheme');
+        const statsOther = document.getElementById('stats-other');
+        const searchInput = document.getElementById('search-input');
+        
+        // Chart elements
+        const branchChartCanvas = document.getElementById('branch-chart');
+        const statusChartCanvas = document.getElementById('status-chart'); // NEW
+        
+        // Filter elements (NEW)
+        const filterStatus = document.getElementById('filter-status');
+        const filterBranch = document.getElementById('filter-branch');
+
+        // Edit Modal elements (NEW)
+        const editModal = document.getElementById('edit-modal');
+        const closeEditModalBtn = document.getElementById('close-edit-modal-btn');
+        const cancelEditBtn = document.getElementById('cancel-edit-btn');
+        const editForm = document.getElementById('edit-form');
+        const editAppId = document.getElementById('edit-app-id');
+        const editFullName = document.getElementById('edit-fullName');
+        const editGrade12 = document.getElementById('edit-grade12');
+        const editCet = document.getElementById('edit-cet');
+        const editJee = document.getElementById('edit-jee');
+        const editStatus = document.getElementById('edit-status');
+        const editQuestionsContainer = document.getElementById('edit-questions-container'); // NEW
+
+        // Form Step elements (NEW)
+        const formSteps = [
+            document.getElementById('form-step-1'),
+            document.getElementById('form-step-2'),
+            document.getElementById('form-step-3')
+        ];
+        const stepIndicators = [
+            document.getElementById('step-1-indicator'),
+            document.getElementById('step-2-indicator'),
+            document.getElementById('step-3-indicator')
+        ];
+        const prevBtn = document.getElementById('prev-btn');
+        const nextBtn = document.getElementById('next-btn');
+        let currentStep = 0;
+        
+        // NEW: Digilocker
+        const digilockerBtn = document.getElementById('digilocker-btn');
+        const docVerificationContainer = document.getElementById('doc-verification-container');
+        // This is a new global flag to track our verification source
+        let documentVerificationSource = null; // Can be 'digilocker' or 'upload'
+
+
+        let realtimeChannel = null;
+        let allApplications = []; // Holds the master list of applications
+        let branchChart = null; // Holds the Chart.js instance
+        let statusChart = null; // NEW: Holds the status chart instance
+
+        // --- NEW: Branch and Specialization Data ---
+        const branchData = {
+            "CSE": [
+                "Artificial Intelligence (AI) and Machine Learning (ML)",
+                "Data Science / Big Data Analytics",
+                "Cybersecurity",
+                "Cloud Computing",
+                "Internet of Things (IoT)",
+                "Blockchain Technology",
+                "Computer Networks",
+                "Software Engineering",
+                "Robotics and Automation",
+                "Human–Computer Interaction"
+            ],
+            "ME": [
+                "Thermal Engineering",
+                "Design Engineering",
+                "Manufacturing Engineering",
+                "Mechatronics",
+                "Robotics",
+                "Automotive Engineering",
+                "Aerospace Systems",
+                "Industrial Engineering",
+                "CAD/CAM (Computer-Aided Design / Manufacturing)"
+            ],
+            "EE": [
+                "Power Systems",
+                "Control Systems",
+                "Electrical Machines and Drives",
+                "Power Electronics",
+                "Renewable Energy Systems",
+                "Smart Grid Technology",
+                "Instrumentation and Measurement"
+            ],
+            "CE": [
+                "Structural Engineering",
+                "Transportation Engineering",
+                "Environmental Engineering",
+                "Geotechnical Engineering",
+                "Water Resources Engineering",
+                "Construction Management",
+                "Urban and Regional Planning"
+            ],
+            "ChemE": [
+                "Process Engineering",
+                "Petroleum Refining",
+                "Biochemical Engineering",
+                "Polymer Science",
+                "Environmental Engineering",
+                "Food Technology",
+                "Nanotechnology"
+            ]
+        };
+
+        // --- Dependent Dropdown Logic ---
+        branchSelect.addEventListener('change', (e) => {
+            const selectedBranch = e.target.value;
+            // Clear previous specializations
+            specializationSelect.innerHTML = '<option value="" disabled selected>-- Choose a Specialization --</option>';
+            
+            if (branchData[selectedBranch] && branchData[selectedBranch].length > 0) {
+                // Populate new specializations
+                branchData[selectedBranch].forEach(spec => {
+                    const option = document.createElement('option');
+                    option.value = spec;
+                    option.textContent = spec;
+                    specializationSelect.appendChild(option);
+                });
+                // Enable the dropdown
+                specializationSelect.disabled = false;
+                specializationSelect.classList.remove('bg-gray-50');
+            } else {
+                // No specializations for this branch
+                specializationSelect.innerHTML = '<option value="N/A" selected>N/A</option>';
+                specializationSelect.disabled = true;
+                specializationSelect.classList.add('bg-gray-50');
+            }
+        });
+
+
+        // --- NAVIGATION LOGIC ---
+        function showPage(page) {
+            studentPage.classList.remove('active-page');
+            adminPage.classList.remove('active-page');
+            studentPortalBtn.classList.remove('bg-indigo-600', 'text-white');
+            adminPortalBtn.classList.remove('bg-indigo-600', 'text-white');
+
+            // cleanup realtime channel when leaving admin
+            if (realtimeChannel) {
+                supabase.removeChannel(realtimeChannel);
+                realtimeChannel = null;
+            }
+
+            if (page === 'student') {
+                studentPage.classList.add('active-page');
+                studentPortalBtn.classList.add('bg-indigo-600', 'text-white');
+                adminPortalBtn.classList.add('bg-gray-200', 'text-gray-800');
+            } else {
+                adminPage.classList.add('active-page');
+                adminPortalBtn.classList.add('bg-indigo-600', 'text-white');
+                studentPortalBtn.classList.add('bg-gray-200', 'text-gray-800');
+                listenForApplications();
+            }
+        }
+
+        studentPortalBtn.addEventListener('click', () => showPage('student'));
+        adminPortalBtn.addEventListener('click', () => showPage('admin'));
+        dbTestBtn.addEventListener('click', testConnection);
+
+        // --- (UPDATED) DOCUMENT UPLOAD & DIGILOCKER LOGIC ---
+        documentUpload.addEventListener('change', () => {
+            const file = documentUpload.files[0];
+            if (!file) {
+                 // User cancelled file selection
+                 if (documentVerificationSource === 'upload') {
+                    documentVerificationSource = null;
+                    admissionForm.dataset.verified = "Manual Review";
+                    verificationStatus.innerHTML = '';
+                    docVerificationContainer.classList.remove('doc-invalid');
+                 }
+                 return;
+            }
+            
+            // User selected a file, so this is the chosen method
+            documentVerificationSource = 'upload';
+            admissionForm.dataset.verified = "Pending Auto-Verification";
+            
+            // Disable Digilocker button to avoid confusion
+            digilockerBtn.disabled = true;
+            digilockerBtn.classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // Show processing status
+            verificationStatus.innerHTML = `<div class="w-5 h-5 border-t-2 border-indigo-500 border-solid rounded-full animate-spin"></div><span class="text-sm text-indigo-700 font-semibold">Ready for backend processing...</span>`;
+            docVerificationContainer.classList.remove('doc-invalid');
+        });
+
+        digilockerBtn.addEventListener('click', () => {
+            // This is a simulation. In a real app, this would redirect to Digilocker.
+            verificationStatus.innerHTML = `<div class="w-5 h-5 border-t-2 border-indigo-500 border-solid rounded-full animate-spin"></div><span class="text-sm text-gray-600">Redirecting to Digilocker...</span>`;
+            
+            // Simulate a successful return from Digilocker
+            setTimeout(() => {
+                documentVerificationSource = 'digilocker';
+                admissionForm.dataset.verified = "Verified"; // Instantly verified!
+                
+                // Disable manual upload
+                documentUpload.disabled = true;
+                documentUpload.classList.add('opacity-50', 'cursor-not-allowed');
+                digilockerBtn.disabled = true;
+                digilockerBtn.textContent = 'Verified via Digilocker';
+                digilockerBtn.classList.add('bg-green-600', 'opacity-100', 'cursor-default');
+                digilockerBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+
+                // Show success status
+                verificationStatus.innerHTML = `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><span class="text-sm text-green-700 font-semibold">Digilocker Verification Successful!</span>`;
+                docVerificationContainer.classList.remove('doc-invalid');
+
+                // Simulate fetching the student's name and grade (and auto-fill Step 1)
+                const fullNameInput = document.getElementById('fullName');
+                const grade12Input = document.getElementById('grade12');
+                if (fullNameInput.value === '') fullNameInput.value = "Jane D. Locker";
+                if (grade12Input.value === '') grade12Input.value = 95.50;
+                
+            }, 2500);
+        });
+
+
+            // helper: upload file to Supabase Storage and return public URL
+            async function uploadFileToStorage(bucket, file, destPathPrefix = '') {
+                if (!file) return null;
+                try {
+                    // Use a more structured file path for easier browsing
+                    const fileExt = file.name.split('.').pop();
+                    const fileName = `${destPathPrefix}${Date.now()}.${fileExt}`;
+                    
+                    const { data, error } = await supabase.storage.from(bucket).upload(fileName, file, { 
+                        cacheControl: '3600', 
+                        upsert: false 
+                    });
+
+                    if (error) {
+                        console.error('Upload error:', error);
+                        return null;
+                    }
+                    
+                    // Get the public URL
+                    const { data: urlData } = supabase.storage.from(bucket).getPublicUrl(data.path);
+                    return urlData.publicUrl || null;
+                } catch (err) {
+                    console.error('Upload exception:', err);
+                    return null;
+                }
+            }
+
+        // --- FORM SUBMISSION (Supabase) ---
+        admissionForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            // Final validation check
+            if (!validateStep(currentStep)) {
+                admissionForm.classList.add('was-validated');
+                return;
+            }
+
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Submitting...';
+
+            // --- 1. SOP Analysis (Local) ---
+            const sopText = document.getElementById('q1_interest').value.toLowerCase();
+            const keywords = {
+                'Computer Science': ['programming', 'ai', 'software', 'data', 'algorithm', 'code', 'machine learning', 'cybersecurity', 'cloud', 'iot'],
+                'Mechanical': ['machines', 'engines', 'robotics', 'thermodynamics', 'cad', 'mechanics', 'automotive', 'aerospace'],
+                'Electrical': ['circuit', 'sensor', 'power', 'signal', 'semiconductor', 'embedded', 'control systems', 'renewable'],
+                'Civil': ['structural', 'transportation', 'environmental', 'geotechnical', 'water', 'construction', 'urban', 'civil'], // Added 'civil'
+                'Chemical': ['process', 'petroleum', 'biochemical', 'polymer', 'nanotechnology', 'food tech']
+            };
+            let interestScores = {};
+            for (const stream in keywords) {
+                interestScores[stream] = 0;
+                keywords[stream].forEach(keyword => {
+                    if (sopText.includes(keyword)) interestScores[stream]++;
+                });
+            }
+            const predictedInterest = Object.keys(interestScores).reduce((a, b) => interestScores[a] > interestScores[b] ? a : b);
+
+            // --- 2. File Uploads (Supabase Storage) ---
+            const sessionUser = await getSessionUser();
+            const filePrefix = sessionUser ? `${sessionUser.id}/` : 'public/';
+
+            // Only upload the 12th marksheet if the source was 'upload'
+            const twelveFile = (documentVerificationSource === 'upload') ? documentUpload.files[0] : null;
+            const cetFile = cetMarksheetUpload ? cetMarksheetUpload.files[0] : null;
+            const jeeFile = jeeMarksheetUpload ? jeeMarksheetUpload.files[0] : null;
+
+            submitBtn.textContent = 'Uploading files...';
+            const twelveUrl = await uploadFileToStorage('marksheets', twelveFile, `${filePrefix}12th_`);
+            const cetUrl = await uploadFileToStorage('marksheets', cetFile, `${filePrefix}cet_`);
+            const jeeUrl = await uploadFileToStorage('marksheets', jeeFile, `${filePrefix}jee_`);
+            
+            // If Digilocker was used, we don't have a file URL, but we set status to "Verified"
+            if (documentVerificationSource === 'digilocker') {
+                admissionForm.dataset.verified = "Verified";
+            } else if (documentVerificationSource === 'upload' && twelveUrl) {
+                admissionForm.dataset.verified = "Pending Auto-Verification";
+            } else {
+                admissionForm.dataset.verified = "Manual Review"; // No doc provided
+            }
+
+
+            // --- 3. Create Database Record (Supabase DB) ---
+            submitBtn.textContent = 'Saving application...';
+
+            const sopAnswers = {
+                q1_interest: document.getElementById('q1_interest').value || null,
+                q2_project: document.getElementById('q2_project').value || null,
+                q3_goals: document.getElementById('q3_goals').value || null,
+                // NEWLY ADDED
+                q4_teamrole: document.getElementById('q4_teamrole').value || null,
+                q5_invention: document.getElementById('q5_invention').value || null,
+            };
+
+            const newApplication = {
+                name: document.getElementById('fullName').value.trim(),
+                email: document.getElementById('email').value.trim(),
+                dob: document.getElementById('dob').value,
+                phone: document.getElementById('phone').value.trim(),
+                grade10: parseFloat(document.getElementById('grade10').value) || null,
+                grade12: parseFloat(document.getElementById('grade12').value) || null,
+                cet: document.getElementById('cet') ? parseFloat(document.getElementById('cet').value) || null : null,
+                jee: document.getElementById('jee') ? parseFloat(document.getElementById('jee').value) || null : null,
+                marksheet_12_url: twelveUrl,
+                marksheet_cet_url: cetUrl,
+                marksheet_jee_url: jeeUrl,
+                status: admissionForm.dataset.verified || 'Manual Review', 
+                interest: interestScores[predictedInterest] > 0 ? predictedInterest : 'Undetermined',
+                sop: JSON.stringify(sopAnswers),
+                user_id: sessionUser?.id || null, 
+                client_submitted_at: new Date().toISOString(),
+                selected_branch: branchSelect.value || null,
+                selected_specialization: specializationSelect.value || null,
+            };
+
+            try {
+                // Insert the record and select it back to get the ID
+                const { data, error } = await supabase
+                    .from('submissions')
+                    .insert([newApplication])
+                    .select('id') // Ask Supabase to return the 'id' of the new row
+                    .single(); // We only inserted one row
+
+                if (error) {
+                    if (error.code === '42703' || error.message.includes("column does not exist")) {
+                         console.error('Database Error: A required column is missing. Did you add `selected_branch` and `selected_specialization` to your `submissions` table in Supabase?', error);
+                         showToast('Submission failed! Database not up to date.', 'error');
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    
+                    // --- 4. (NEW) Trigger Python Backend Worker ---
+                    // Only trigger if a manual upload was done
+                    if (documentVerificationSource === 'upload' && data && data.id && twelveUrl) {
+                        if (PYTHON_WORKER_URL.includes('your-username')) {
+                            console.warn('Python worker not triggered: Please set PYTHON_WORKER_URL in the script (line 344).');
+                            showToast('App submitted. Set worker URL to enable OCR.', 'success');
+                        } else {
+                            // We have the new submission ID (data.id) and the file URL (twelveUrl)
+                            const submissionId = data.id;
+                            console.log(`Triggering backend worker for submission ${submissionId} at ${PYTHON_WORKER_URL}`);
+                            showToast('Application submitted! Starting AI verification...', 'success');
+                            
+                            // We do this 'fire-and-forget' style. We don't wait for the worker.
+                            fetch(PYTHON_WORKER_URL, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                    submission_id: submissionId,
+                                    file_url: twelveUrl 
+                                })
+                            }).then(response => {
+                                if (response.ok) {
+                                    console.log('Successfully triggered backend worker.');
+                                } else {
+                                    console.warn('Backend worker returned an error:', response.statusText);
+                                }
+                            }).catch(err => {
+                                console.error('Failed to fetch backend worker:', err);
+                                showToast('App submitted, but AI worker trigger failed.', 'error');
+                            });
+                        }
+                    } else {
+                         showToast('Application submitted successfully!', 'success');
+                    }
+                    // --- End of New Code ---
+
+                    admissionForm.reset();
+                    verificationStatus.innerHTML = '';
+                    delete admissionForm.dataset.verified;
+                    specializationSelect.innerHTML = '<option value="" disabled selected>-- Select Branch First --</option>';
+                    specializationSelect.disabled = true;
+                    specializationSelect.classList.add('bg-gray-50');
+                    // Reset form to step 1
+                    goToStep(0);
+                    admissionForm.classList.remove('was-validated');
+
+                    // NEW: Reset Digilocker/Upload buttons
+                    documentVerificationSource = null;
+                    documentUpload.disabled = false;
+                    documentUpload.classList.remove('opacity-50', 'cursor-not-allowed');
+                    digilockerBtn.disabled = false;
+                    digilockerBtn.textContent = 'Fetch Verified Marksheet';
+                    digilockerBtn.classList.remove('bg-green-600', 'opacity-100', 'cursor-default');
+                    digilockerBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                    docVerificationContainer.classList.remove('doc-invalid');
+
+
+                }
+            } catch (error) {
+                console.error('Error inserting submission: ', error);
+                if (!toast.textContent.includes('Database not up to date')) {
+                    showToast('Submission failed. Please try again.', 'error');
+                }
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Submit Application';
+            }
+        });
+
+        // --- NEW: Multi-Step Form Logic ---
+        function goToStep(stepIndex) {
+            // Hide all steps
+            formSteps.forEach(step => step.classList.remove('active-step'));
+            // Show the target step
+            formSteps[stepIndex].classList.add('active-step');
+            
+            // Update step indicators
+            stepIndicators.forEach((indicator, idx) => {
+                if (idx === stepIndex) {
+                    indicator.classList.add('bg-indigo-600', 'text-white');
+                    indicator.classList.remove('bg-gray-300', 'text-gray-600');
+                    indicator.nextElementSibling.classList.add('text-indigo-600');
+                    indicator.nextElementSibling.classList.remove('text-gray-600');
+                } else if (idx < stepIndex) {
+                    // Mark completed steps
+                    indicator.classList.add('bg-indigo-600', 'text-white');
+                    indicator.classList.remove('bg-gray-300', 'text-gray-600');
+                    indicator.nextElementSibling.classList.add('text-indigo-600');
+                    indicator.nextElementSibling.classList.remove('text-gray-600');
+                    indicator.textContent = '✔'; // Checkmark
+                } else {
+                    // Reset future steps
+                    indicator.classList.add('bg-gray-300', 'text-gray-600');
+                    indicator.classList.remove('bg-indigo-600', 'text-white');
+                    indicator.nextElementSibling.classList.add('text-gray-600');
+                    indicator.nextElementSibling.classList.remove('text-indigo-600');
+                    indicator.textContent = idx + 1; // Number
+                }
+            });
+
+            // Update button visibility
+            prevBtn.disabled = (stepIndex === 0);
+            
+            if (stepIndex === formSteps.length - 1) {
+                // Last step
+                nextBtn.style.display = 'none';
+                submitBtn.style.display = 'inline-block';
+            } else {
+                // Not last step
+                nextBtn.style.display = 'inline-block';
+                submitBtn.style.display = 'none';
+            }
+            
+            currentStep = stepIndex;
+        }
+
+        function validateStep(stepIndex) {
+            const currentStepEl = formSteps[stepIndex];
+            const inputs = currentStepEl.querySelectorAll('input[required], select[required], textarea[required]');
+            let allValid = true;
+            
+            for (const input of inputs) {
+                // Skip validation for document-upload if digilocker was used
+                if (input.id === 'document-upload' && documentVerificationSource === 'digilocker') {
+                    continue;
+                }
+                
+                if (!input.checkValidity()) {
+                    allValid = false;
+                    // Trigger custom styling for this invalid field
+                    input.reportValidity(); // This will show the native bubble, but we need it for check
+                }
+            }
+            
+            // NEW: Custom validation for Step 2 (document upload)
+            if (stepIndex === 1) { // Step 2 is at index 1
+                if (!documentVerificationSource) { // No file uploaded AND digilocker not used
+                    allValid = false;
+                    // Find the doc container and add an error class
+                    docVerificationContainer.classList.add('doc-invalid');
+                    verificationStatus.innerHTML = `<span class="text-sm text-red-600 font-semibold">Please upload your marksheet or use Digilocker.</span>`;
+                } else {
+                    docVerificationContainer.classList.remove('doc-invalid');
+                }
+            }
+
+            
+            // Clear all native bubbles
+            if(allValid) {
+                 admissionForm.classList.remove('was-validated');
+            } else {
+                 admissionForm.classList.add('was-validated');
+                 // Find the first invalid element and focus it
+                 const firstInvalid = currentStepEl.querySelector('input:invalid, select:invalid, textarea:invalid');
+                 if (firstInvalid) {
+                    firstInvalid.focus();
+                 }
+            }
+            return allValid;
+        }
+
+        nextBtn.addEventListener('click', () => {
+            if (validateStep(currentStep)) {
+                goToStep(currentStep + 1);
+            }
+        });
+
+        prevBtn.addEventListener('click', () => {
+            goToStep(currentStep - 1);
+        });
+        // --- End Multi-Step Form Logic ---
+
+
+        // --- ADMIN DASHBOARD (Supabase realtime + initial fetch) ---
+        async function fetchApplications() {
+            applicationsTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-12 text-center"><div class="loader mx-auto"></div><p class="mt-2 text-gray-500">Loading applications...</p></td></tr>`;
+            try {
+                const { data, error } = await supabase
+                    .from('submissions')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                if (error) throw error;
+                allApplications = data || []; // Store in the master list
+                displayFilteredData(); // Render the data
+            } catch (err) {
+                console.error('Error fetching applications:', err);
+                       applicationsTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-12 text-center text-red-500">Failed to load data. Check console.</td></tr>`;
+            }
+        }
+
+        // --- NEW: Event listeners for filters ---
+        searchInput.addEventListener('input', displayFilteredData);
+        filterStatus.addEventListener('input', displayFilteredData);
+        filterBranch.addEventListener('input', displayFilteredData);
+
+        // --- UPDATED: Function to filter and display data ---
+        function displayFilteredData() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const statusFilter = filterStatus.value;
+            const branchFilter = filterBranch.value;
+            
+            const filteredApplications = allApplications.filter(app => {
+                // 1. Search filter
+                const nameMatch = app.name && app.name.toLowerCase().includes(searchTerm);
+                const emailMatch = app.email && app.email.toLowerCase().includes(searchTerm);
+                const searchMatch = !searchTerm || nameMatch || emailMatch;
+
+                // 2. Status filter
+                const statusMatch = !statusFilter || app.status === statusFilter;
+
+                // 3. Branch filter
+                const branchMatch = !branchFilter || app.selected_branch === branchFilter;
+
+                return searchMatch && statusMatch && branchMatch;
+            });
+            
+            renderApplications(filteredApplications); // Render filtered list
+        }
+
+        function listenForApplications() {
+            // initial load
+            fetchApplications();
+
+            // setup realtime subscription to changes on submissions
+            realtimeChannel = supabase.channel('public:submissions')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'submissions' }, payload => {
+                    console.log('Realtime change received!', payload);
+                    // Refetch all data, update master list, and re-apply filters
+                    fetchApplications();
+                }).subscribe();
+        }
+
+        function renderApplications(applications) {
+            applicationsTableBody.innerHTML = '';
+            
+            // --- Stats counters (Calculated from MASTER list) ---
+            let total = 0;
+            let cse = 0;
+            let me = 0;
+            let ee = 0;
+            let ce = 0;
+            let cheme = 0;
+            let other = 0;
+            
+            // NEW Status counters
+            let accepted = 0;
+            let rejected = 0;
+            let manual = 0; // Includes 'Manual Review' and 'Verified'
+            let auto = 0;
+            let pending = 0;
+
+            allApplications.forEach(app => {
+                // Branch stats
+                total++;
+                switch(app.selected_branch) {
+                    case 'CSE': cse++; break;
+                    case 'ME': me++; break;
+                    case 'EE': ee++; break;
+                    case 'CE': ce++; break;
+                    case 'ChemE': cheme++; break;
+                    default: other++;
+                }
+
+                // NEW Status stats
+                switch(app.status) {
+                    case 'Accepted': accepted++; break;
+                    case 'Rejected': rejected++; break;
+                    case 'Manual Review': manual++; break;
+                    case 'Verified': manual++; break; // 'Verified' is a form of manual review
+                    case 'Auto-Processed': auto++; break;
+                    case 'Pending Auto-Verification': pending++; break;
+                    default: manual++; // Default to manual
+                }
+            });
+
+            if (!applications || applications.length === 0) {
+                const message = (searchInput.value || filterStatus.value || filterBranch.value)
+                    ? 'No applications match your filters.' 
+                    : 'No applications submitted yet.';
+                applicationsTableBody.innerHTML = `<tr><td colspan="8" class="px-6 py-12 text-center text-gray-500">${message}</td></tr>`;
+            } else {
+                applications.forEach(app => {
+                    const row = document.createElement('tr');
+                    row.id = `app-row-${app.id}`; // Add id for easy updates
+
+                    // --- Create Table Cells ---
+                    // Name & email cell
+                    const nameTd = document.createElement('td');
+                    nameTd.className = 'px-6 py-4 whitespace-nowrap';
+                    const nameDiv = document.createElement('div');
+                    nameDiv.className = 'text-sm font-medium text-gray-900';
+                    nameDiv.textContent = app.name || '';
+                    const emailDiv = document.createElement('div');
+                    emailDiv.className = 'text-sm text-gray-500';
+                    emailDiv.textContent = app.email || '';
+                    nameTd.appendChild(nameDiv);
+                    nameTd.appendChild(emailDiv);
+
+                    // Branch & Specialization cell
+                    const branchTd = document.createElement('td');
+                    branchTd.className = 'px-6 py-4 whitespace-nowrap';
+                    const branchDiv = document.createElement('div');
+                    branchDiv.className = 'text-sm font-medium text-gray-900';
+                    branchDiv.textContent = app.selected_branch || 'N/A';
+                    const specDiv = document.createElement('div');
+                    specDiv.className = 'text-sm text-gray-500';
+                    specDiv.textContent = app.selected_specialization || 'N/A';
+                    branchTd.appendChild(branchDiv);
+                    branchTd.appendChild(specDiv);
+
+                    // Grade cell
+                    const gradeTd = document.createElement('td');
+                    gradeTd.className = 'px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-900';
+                    gradeTd.textContent = (app.grade12 !== null && app.grade12 !== undefined) ? `${app.grade12}%` : '-';
+
+                    // CET cell
+                    const cetTd = document.createElement('td');
+                    cetTd.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-700';
+                    cetTd.textContent = (app.cet !== null && app.cet !== undefined) ? `${app.cet}` : '-';
+
+                    // JEE cell
+                    const jeeTd = document.createElement('td');
+                    jeeTd.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-700';
+                    jeeTd.textContent = (app.jee !== null && app.jee !== undefined) ? `${app.jee}` : '-';
+
+                    // Status cell (NEW: Added Accept/Reject styles)
+                    const statusTd = document.createElement('td');
+                    statusTd.className = 'px-6 py-4 whitespace-nowrap';
+                    const statusSpan = document.createElement('span');
+                    let statusClass, statusText;
+                    
+                    switch(app.status) {
+                        case 'Verified':
+                            statusClass = 'bg-green-100 text-green-800';
+                            statusText = 'Verified';
+                            break;
+                        case 'Auto-Processed':
+                            statusClass = 'bg-blue-100 text-blue-800';
+                            statusText = 'Auto-Processed';
+                            break;
+                        case 'Pending Auto-Verification':
+                            statusClass = 'bg-indigo-100 text-indigo-800';
+                            statusText = 'Processing...';
+                            break;
+                        case 'Accepted': // NEW
+                            statusClass = 'bg-green-100 text-green-800 font-bold';
+                            statusText = 'Accepted';
+                            break;
+                        case 'Rejected': // NEW
+                            statusClass = 'bg-red-100 text-red-800 font-bold';
+                            statusText = 'Rejected';
+                            break;
+                        default:
+                            statusClass = 'bg-yellow-100 text-yellow-800';
+                            statusText = app.status || 'Manual Review';
+                    }
+                    
+                    statusSpan.className = `px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}`;
+                    statusSpan.textContent = statusText;
+                    statusTd.appendChild(statusSpan);
+
+                    // Interest cell
+                    const interestTd = document.createElement('td');
+                    interestTd.className = 'px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-medium';
+                    interestTd.textContent = app.interest || 'Undetermined';
+                    
+                    // --- Actions cell (HEAVILY UPDATED) ---
+                    const actionTd = document.createElement('td');
+                    actionTd.className = 'px-6 py-4 whitespace-nowrap text-sm space-y-2 flex flex-col items-start'; // Flex col for button stacking
+                    
+                    // 1. Add Edit button
+                    const editBtn = document.createElement('button');
+                    editBtn.className = 'px-3 py-1 bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 text-xs font-semibold';
+                    editBtn.textContent = 'Edit/View'; // Changed text
+                    editBtn.onclick = () => showEditModal(app);
+                    actionTd.appendChild(editBtn);
+
+                    // 2. Add Accept/Reject buttons (if not already decided)
+                    if (app.status !== 'Accepted' && app.status !== 'Rejected') {
+                        const acceptBtn = document.createElement('button');
+                        acceptBtn.className = 'px-3 py-1 bg-green-100 text-green-700 rounded-full hover:bg-green-200 text-xs font-semibold';
+                        acceptBtn.textContent = 'Accept';
+                        acceptBtn.onclick = () => updateApplicationStatus(app.id, 'Accepted');
+                        actionTd.appendChild(acceptBtn);
+
+                        const rejectBtn = document.createElement('button');
+                        rejectBtn.className = 'px-3 py-1 bg-red-100 text-red-700 rounded-full hover:bg-red-200 text-xs font-semibold';
+                        rejectBtn.textContent = 'Reject';
+                        rejectBtn.onclick = () => updateApplicationStatus(app.id, 'Rejected');
+                        actionTd.appendChild(rejectBtn);
+                    }
+                    
+                    // 3. Add file links (if they exist)
+                    const linksDiv = document.createElement('div');
+                    linksDiv.className = 'flex space-x-2';
+                    if (app.marksheet_12_url) {
+                        const link = document.createElement('a');
+                        link.href = app.marksheet_12_url;
+                        link.target = '_blank';
+                        link.textContent = '12th';
+                        link.className = 'text-indigo-600 hover:text-indigo-900 text-xs font-medium';
+                        linksDiv.appendChild(link);
+                    }
+                     if (app.marksheet_cet_url) {
+                        const link = document.createElement('a');
+                        link.href = app.marksheet_cet_url;
+                        link.target = '_blank';
+                        link.textContent = 'CET';
+                        link.className = 'text-indigo-600 hover:text-indigo-900 text-xs font-medium';
+                        linksDiv.appendChild(link);
+                    }
+                     if (app.marksheet_jee_url) {
+                        const link = document.createElement('a');
+                        link.href = app.marksheet_jee_url;
+                        link.target = '_blank';
+                        link.textContent = 'JEE';
+                        link.className = 'text-indigo-600 hover:text-indigo-900 text-xs font-medium';
+                        linksDiv.appendChild(link);
+                    }
+                    if (linksDiv.childElementCount > 0) {
+                        actionTd.appendChild(linksDiv);
+                    }
+
+
+                    row.appendChild(nameTd);
+                    row.appendChild(branchTd);
+                    row.appendChild(gradeTd);
+                    row.appendChild(cetTd);
+                    row.appendChild(jeeTd);
+                    row.appendChild(statusTd);
+                    row.appendChild(interestTd);
+                    row.appendChild(actionTd);
+
+                    applicationsTableBody.appendChild(row);
+                });
+            }
+            
+            // --- Update Stats Display (using the pre-calculated totals) ---
+            statsTotal.textContent = total;
+            statsCse.textContent = cse;
+            statsMe.textContent = me;
+            statsEe.textContent = ee;
+            statsCe.textContent = ce;
+            statsChemE.textContent = cheme;
+            statsOther.textContent = other;
+
+            // --- Update Charts ---
+            updateBranchChart([cse, me, ee, ce, cheme, other]);
+            updateStatusChart([manual, auto, pending, accepted, rejected]); // NEW
+        }
+
+        // --- NEW: Chart.js Function ---
+        function updateBranchChart(data) {
+            const chartData = {
+                labels: ['CSE', 'Mechanical', 'Electrical', 'Civil', 'Chemical', 'Other'],
+                datasets: [{
+                    label: 'Applications',
+                    data: data,
+                    backgroundColor: [
+                        '#3b82f6', // blue-500
+                        '#6b7280', // gray-500
+                        '#f59e0b', // yellow-500
+                        '#10b981', // green-500
+                        '#ef4444', // red-500
+                        '#a855f7', // purple-500
+                    ],
+                    hoverOffset: 4
+                }]
+            };
+
+            // If chart already exists, destroy it before creating a new one
+            if (branchChart) {
+                branchChart.destroy();
+            }
+
+            // Create new chart
+            branchChart = new Chart(branchChartCanvas, {
+                type: 'pie',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Branch Distribution' }
+                    }
+                }
+            });
+        }
+
+        // --- NEW: Status Chart Function ---
+        function updateStatusChart(data) {
+            const chartData = {
+                labels: ['Manual/Verified', 'Auto-Processed', 'Processing', 'Accepted', 'Rejected'],
+                datasets: [{
+                    label: 'Application Status',
+                    data: data,
+                    backgroundColor: [
+                        '#f59e0b', // yellow-500 (Manual)
+                        '#3b82f6', // blue-500 (Auto)
+                        '#6366f1', // indigo-500 (Processing)
+                        '#10b981', // green-500 (Accepted)
+                        '#ef4444', // red-500 (Rejected)
+                    ],
+                    hoverOffset: 4
+                }]
+            };
+            
+            if (statusChart) statusChart.destroy();
+            
+            statusChart = new Chart(statusChartCanvas, {
+                type: 'doughnut', // Doughnut looks nice
+                data: chartData,
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: true, text: 'Application Status' }
+                    }
+                }
+            });
+        }
+
+
+        // --- NEW: Replaces markAsVerified ---
+        async function updateApplicationStatus(appId, newStatus) {
+            const row = document.getElementById(`app-row-${appId}`);
+            if(row) row.style.opacity = '0.5'; // Visually indicate loading
+
+            try {
+                const { error } = await supabase
+                    .from('submissions')
+                    .update({ status: newStatus })
+                    .eq('id', appId);
+                
+                if (error) throw error;
+                
+                showToast(`Application marked as ${newStatus}!`, 'success');
+                // The realtime listener will handle the UI update.
+            } catch (error) {
+                console.error('Error updating status:', error);
+                showToast('Failed to update status.', 'error');
+                if(row) row.style.opacity = '1';
+            }
+        }
+        
+        // --- NEW: Edit Modal Functions ---
+        function populateStatusDropdown(selectElement) {
+            // These are all the possible statuses
+            const statuses = ['Manual Review', 'Auto-Processed', 'Pending Auto-Verification', 'Verified', 'Accepted', 'Rejected'];
+            selectElement.innerHTML = ''; // Clear old options
+            statuses.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                selectElement.appendChild(opt);
+            });
+        }
+
+        function showEditModal(app) {
+            // 1. Populate the modal with the application's data
+            editAppId.value = app.id;
+            editFullName.value = app.name || '';
+            editGrade12.value = app.grade12 || '';
+            editCet.value = app.cet || '';
+            editJee.value = app.jee || '';
+            
+            // 2. Populate status dropdown and set the current value
+            populateStatusDropdown(editStatus);
+            editStatus.value = app.status || 'Manual Review';
+
+            // 3. Populate the question answers
+            editQuestionsContainer.innerHTML = ''; // Clear old questions
+            try {
+                // The 'sop' column contains a JSON string
+                const answers = JSON.parse(app.sop || '{}');
+                const questions = [
+                    { key: 'q1_interest', label: '1. Project that made you lose track of time:' },
+                    { key: 'q2_project', label: '2. Problems that excite you:' },
+                    { key: 'q3_goals', label: '3. Topics you learn on your own:' },
+                    // NEWLY ADDED
+                    { key: 'q4_teamrole', label: '4. Team role you naturally take:' },
+                    { key: 'q5_invention', label: '5. Invention/Innovation you would create:' }
+                ];
+
+                questions.forEach(q => {
+                    const qDiv = document.createElement('div');
+                    qDiv.className = 'text-sm';
+                    const qLabel = document.createElement('strong');
+                    qLabel.className = 'text-gray-600 block';
+                    qLabel.textContent = q.label;
+                    const qAnswer = document.createElement('p');
+                    qAnswer.className = 'text-gray-800';
+                    qAnswer.textContent = answers[q.key] || 'No answer provided.';
+                    
+                    qDiv.appendChild(qLabel);
+                    qDiv.appendChild(qAnswer);
+                    editQuestionsContainer.appendChild(qDiv);
+                });
+            } catch (e) {
+                 console.error('Error parsing SOP JSON:', e);
+                 // Fallback for old/plain text SOP
+                 const qDiv = document.createElement('div');
+                 qDiv.className = 'text-sm';
+                 const qLabel = document.createElement('strong');
+                 qLabel.className = 'text-gray-600 block';
+                 qLabel.textContent = 'Statement of Purpose (old format):';
+                 const qAnswer = document.createElement('p');
+                 qAnswer.className = 'text-gray-800';
+                 qAnswer.textContent = app.sop || 'No answer provided.';
+                 qDiv.appendChild(qLabel);
+                 qDiv.appendChild(qAnswer);
+                 editQuestionsContainer.appendChild(qDiv);
+            }
+            
+            // 4. Show modal
+            editModal.classList.remove('hidden');
+            editModal.classList.add('flex');
+            setTimeout(() => editModal.querySelector('div').classList.remove('scale-95', 'opacity-0'), 50);
+        }
+
+        function hideEditModal() {
+            editModal.querySelector('div').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                editModal.classList.add('hidden');
+                editModal.classList.remove('flex');
+            }, 300);
+        }
+
+        async function handleEditFormSubmit(e) {
+            e.preventDefault();
+            const appId = editAppId.value;
+            // Get all updated data from the form
+            const updatedData = {
+                name: editFullName.value.trim(),
+                grade12: parseFloat(editGrade12.value) || null,
+                cet: parseFloat(editCet.value) || null,
+                jee: parseFloat(editJee.value) || null,
+                status: editStatus.value
+            };
+
+            try {
+                const { error } = await supabase.from('submissions').update(updatedData).eq('id', appId);
+                if (error) throw error;
+                showToast('Application updated!', 'success');
+                hideEditModal();
+                // Realtime listener will auto-refresh the table, no need to fetch
+            } catch (error) {
+                console.error('Error updating application:', error);
+                showToast('Update failed.', 'error');
+            }
+        }
+        
+        // Add listeners for new edit modal buttons
+        closeEditModalBtn.addEventListener('click', hideEditModal);
+        cancelEditBtn.addEventListener('click', hideEditModal);
+        editForm.addEventListener('submit', handleEditFormSubmit);
+
+
+        // --- MERIT LIST GENERATION (Unchanged) ---
+        generateMeritListBtn.addEventListener('click', async () => {
+            meritListContent.innerHTML = `<div class="loader mx-auto"></div>`;
+            showModal();
+
+            try {
+                const { data, error } = await supabase
+                    .from('submissions')
+                    .select('*')
+                    .in('status', ['Verified', 'Auto-Processed', 'Accepted']) // Also include 'Accepted'
+                    .order('grade12', { ascending: false });
+                if (error) throw error;
+
+                meritListContent.innerHTML = '';
+                const eligibleApps = data || [];
+                if (eligibleApps.length === 0) {
+                    meritListContent.innerHTML = '<p class="text-gray-600">No verified applications to generate a merit list from.</p>';
+                } else {
+                    const ol = document.createElement('ol');
+                    ol.className = 'list-decimal list-inside space-y-3';
+                    eligibleApps.forEach(app => {
+                        const li = document.createElement('li');
+                        li.className = 'p-3 rounded-lg bg-gray-50';
+                        
+                        const nameSpan = document.createElement('span');
+                        nameSpan.className = 'font-semibold text-gray-800';
+                        nameSpan.textContent = app.name || '';
+                        
+                        const gradeSpan = document.createElement('span');
+                        gradeSpan.className = 'font-bold text-indigo-600';
+                        gradeSpan.textContent = ` ${app.grade12}%`;
+                        
+                        const branchSpan = document.createElement('div');
+                        branchSpan.className = 'text-sm text-gray-500 ml-5';
+                        branchSpan.textContent = `${app.selected_branch || ''} - ${app.selected_specialization || 'N/A'}`;
+
+                        li.appendChild(nameSpan);
+                        li.appendChild(document.createTextNode(' - '));
+                        li.appendChild(gradeSpan);
+                        
+                        // append CET/JEE if present
+                        if (app.cet !== null && app.cet !== undefined) {
+                            const cetSpan = document.createElement('span');
+                            cetSpan.className = 'ml-2 text-sm text-gray-600';
+                            cetSpan.textContent = `CET: ${app.cet}`;
+                            li.appendChild(document.createTextNode(' '));
+                            li.appendChild(cetSpan);
+                        }
+                        if (app.jee !== null && app.jee !== undefined) {
+                            const jeeSpan = document.createElement('span');
+                            jeeSpan.className = 'ml-2 text-sm text-gray-600';
+                            jeeSpan.textContent = `JEE: ${app.jee}`;
+                            li.appendChild(document.createTextNode(' '));
+                            li.appendChild(jeeSpan);
+                        }
+                        li.appendChild(branchSpan);
+                        ol.appendChild(li);
+                    });
+                    meritListContent.appendChild(ol);
+                }
+            } catch (error) {
+                console.error('Error generating merit list: ', error);
+                meritListContent.innerHTML = '<p class="text-red-500">Could not generate merit list. Please try again.</p>';
+            }
+        });
+
+        function showModal() {
+            meritListModal.classList.remove('hidden');
+            meritListModal.classList.add('flex');
+            setTimeout(() => meritListModal.querySelector('div').classList.remove('scale-95', 'opacity-0'), 50);
+        }
+
+        function hideModal() {
+            meritListModal.querySelector('div').classList.add('scale-95', 'opacity-0');
+            setTimeout(() => {
+                meritListModal.classList.add('hidden');
+                meritListModal.classList.remove('flex');
+            }, 300);
+        }
+
+        closeModalBtn.addEventListener('click', hideModal);
+        meritListModal.addEventListener('click', (e) => { if (e.target === meritListModal) hideModal(); });
+
+        function showToast(message, type = 'success') {
+            toast.textContent = message;
+            toast.className = `fixed bottom-10 right-10 text-white py-3 px-6 rounded-lg shadow-xl transform transition-all duration-500 z-50 ${type === 'success' ? 'bg-green-500' : 'bg-red-500'}`;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 3000);
+        }
+
+        // --- INITIALIZATION ---
+        goToStep(0); // Start at the first step
+        // showPage('student'); // This is now controlled by goToStep
+        testConnection();
+        
+        async function testConnection() {
+            if (!dbStatus) return;
+            dbStatus.textContent = 'Checking DB...';
+            dbStatus.className = 'ml-4 inline-flex items-center text-sm text-gray-600';
+            try {
+                const { data, error } = await supabase.from('submissions').select('id').limit(1);
+                if (error) {
+                    if (error.message.includes("Invalid API key")) {
+                        console.error('DB Connection Error:', error.message);
+                        console.warn('Hint:', error.hint);
+                        showToast('DB Error: Invalid API Key!', 'error');
+                        dbStatus.textContent = 'DB Error';
+                        dbStatus.className = 'ml-4 inline-flex items-center text-sm text-red-600';
+                    } else {
+                        throw error;
+                    }
+                } else {
+                    dbStatus.textContent = 'DB connected';
+                    dbStatus.className = 'ml-4 inline-flex items-center text-sm text-green-600';
+                }
+            } catch (err) {
+                if (!err.message.includes("Invalid API key")) {
+                    console.error('DB connection test failed:', err);
+                    dbStatus.textContent = 'DB disconnected';
+                    dbStatus.className = 'ml-4 inline-flex items-center text-sm text-red-600';
+                }
+            }
+        }
+
+        // --- AUTHENTICATION ---
+        async function getSessionUser() {
+            const { data } = await supabase.auth.getSession();
+            return data?.session?.user || null;
+        }
+
+        async function checkAdminAndToggleUI() {
+            const user = await getSessionUser();
+            const adminBtn = document.getElementById('admin-portal-btn');
+            const authBtn = document.getElementById('auth-btn');
+            const studentBtn = document.getElementById('student-portal-btn');
+
+            if (!user) {
+                adminBtn.style.display = 'none';
+                if (studentBtn) { 
+                    studentBtn.style.display = '';
+                }
+                authBtn.textContent = 'Sign in';
+                return;
+            }
+
+            try {
+                const { data, error } = await supabase
+                    .from('profiles')
+                    .select('role')
+                    .eq('id', user.id)
+                    .single();
+
+                if (error && error.code !== 'PGRST116') { 
+                    console.error('Error reading profile role', error);
+                }
+
+                const role = data?.role || null;
+                if (role === 'admin') {
+                    adminBtn.style.display = '';
+                } else {
+                    adminBtn.style.display = 'none';
+                    if (adminPage.classList.contains('active-page')) {
+                        showPage('student');
+                    }
+                }
+            } catch (profileError) {
+                 console.error('Error fetching profile:', profileError);
+                 adminBtn.style.display = 'none';
+            }
+            
+            if (studentBtn) { 
+                studentBtn.style.display = '';
+            }
+            authBtn.textContent = 'Sign out';
+        }
+
+        async function signInWithEmail(email, password) {
+            const res = await supabase.auth.signInWithPassword({ email, password });
+            if (res.error) throw res.error;
+            await checkAdminAndToggleUI();
+        }
+
+        async function signOut() {
+            await supabase.auth.signOut();
+            await checkAdminAndToggleUI();
+            showPage('student');
+        }
+
+        document.getElementById('auth-btn').addEventListener('click', async () => {
+            const user = await getSessionUser();
+            if (user) {
+                await signOut();
+                showToast('Signed out', 'success');
+            } else {
+                const email = prompt('Admin Email for sign-in:');
+                if (!email) return;
+                const password = prompt('Password:');
+                if (!password) return;
+                
+                try {
+                    await signInWithEmail(email, password);
+                    showToast('Signed in', 'success');
+                } catch (err) {
+                    console.error(err);
+                    showToast('Sign-in failed: ' + (err.message || err), 'error');
+                }
+            }
+        });
+
+        checkAdminAndToggleUI();
+
+        supabase.auth.onAuthStateChange((event, session) => {
+            checkAdminAndToggleUI();
+        });
+
+
+        // ----------------------------------------------------
+        // --- CHATBOT LOGIC (Unchanged) ---
+        // ----------------------------------------------------
+        const chatWindow = document.getElementById('chat-window');
+        const chatBubble = document.getElementById('chat-bubble');
+        const closeChatBtn = document.getElementById('close-chat-btn');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        const chatSendBtn = document.getElementById('chat-send-btn');
+        const chatSuggestionChips = document.getElementById('chat-suggestion-chips');
+
+        const apiKey = "AIzaSyDIhAN68KYymHSUlhOGVkhNpxs5NCkcfhU"; // API key is handled by the environment
+
+        const systemPrompt = `You are a friendly and helpful "AI Admission Assistant" for the "Institute ofEngineering and Technology".
+Your goal is to answer student questions and guide them.
+You must be polite and professional.
+Use the following information about the institute's programs:
+
+The institute offers the following main engineering branches and specializations:
+
+1.  Computer Science and Engineering (CSE)
+    * Specializations: Artificial Intelligence (AI) and Machine Learning (ML), Data Science / Big Data Analytics, Cybersecurity, Cloud Computing, Internet of Things (IoT), Blockchain Technology, Computer Networks, Software Engineering, Robotics and Automation, Human–Computer Interaction
+
+2.  Mechanical Engineering (ME)
+    * Specializations: Thermal Engineering, Design Engineering, Manufacturing Engineering, Mechatronics, Robotics, Automotive Engineering, Aerospace Systems, Industrial Engineering, CAD/CAM (Computer-Aided Design / Manufacturing)
+
+3.  Electrical Engineering (EE)
+    * Specializations: Power Systems, Control Systems, Electrical Machines and Drives, Power Electronics, Renewable Energy Systems, Smart Grid Technology, Instrumentation and Measurement
+
+4.  Civil Engineering (CE)
+    * Specializations: Structural Engineering, Transportation Engineering, Environmental Engineering, Geotechnical Engineering, Water Resources Engineering, Construction Management, Urban and Regional Planning
+
+5.  Chemical Engineering
+    * Specializations: Process Engineering, Petroleum Refining, Biochemical Engineering, Polymer Science, Environmental Engineering, Food Technology, Nanotechnology
+
+When asked about branches or specializations, use this list.
+For any other question you don't know (like "What is the admission deadline?", "What are the fees?", or "What is the weather?"), you MUST use the "google_search" tool to find the answer.
+Do not make up information. If you use Google Search, you do not need to cite your sources.
+At the end of your answer, if appropriate, ask a follow-up question to guide the user, like "Would you like to know more about a specific branch?"
+Keep your answers concise and easy to read. Use markdown for lists if helpful.`;
+
+        function toggleChat() {
+            chatWindow.classList.toggle('active');
+            if (chatWindow.classList.contains('active')) {
+                chatBubble.style.display = 'none';
+            } else {
+                chatBubble.style.display = 'flex';
+            }
+        }
+
+        chatBubble.addEventListener('click', toggleChat);
+        closeChatBtn.addEventListener('click', toggleChat);
+
+        function addMessage(sender, message) {
+            const messageEl = document.createElement('div');
+            messageEl.className = `chat-message ${sender}`;
+            messageEl.textContent = message;
+            chatMessages.appendChild(messageEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Auto-scroll
+            return messageEl;
+        }
+
+        function addTypingIndicator() {
+            const typingEl = document.createElement('div');
+            typingEl.className = 'chat-message bot typing';
+            typingEl.innerHTML = `
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            `;
+            chatMessages.appendChild(typingEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+            return typingEl;
+        }
+
+        async function sendMessage() {
+            const userQuery = chatInput.value.trim();
+            if (userQuery === "") return;
+
+            addMessage('user', userQuery);
+            chatInput.value = '';
+            chatSuggestionChips.style.display = 'none'; // Hide chips after first message
+
+            const typingIndicator = addTypingIndicator();
+
+            chatHistory.push({ role: "user", parts: [{ text: userQuery }] });
+
+            const payload = {
+                contents: chatHistory,
+                tools: [{ "google_search": {} }], 
+                systemInstruction: {
+                    parts: [{ text: systemPrompt }]
+                },
+            };
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+            
+            try {
+                const response = await fetchWithBackoff(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const candidate = result.candidates?.[0];
+
+                let botResponse = "Sorry, I couldn't process that request. Please try again.";
+                if (candidate && candidate.content?.parts?.[0]?.text) {
+                    botResponse = candidate.content.parts[0].text;
+                }
+
+                chatMessages.removeChild(typingIndicator);
+                
+                addMessage('bot', botResponse);
+                chatHistory.push({ role: "model", parts: [{ text: botResponse }] });
+
+            } catch (error) {
+                console.error("Chatbot API error:", error);
+                chatMessages.removeChild(typingIndicator);
+                addMessage('bot', `Sorry, I'm having trouble connecting. Error: ${error.message}`);
+            }
+        }
+
+        chatSendBtn.addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+        
+        chatSuggestionChips.addEventListener('click', (e) => {
+            if (e.target.classList.contains('chip')) {
+                const question = e.target.dataset.question;
+                chatInput.value = question;
+                sendMessage();
+            }
+        });
+
+        async function fetchWithBackoff(url, options, retries = 3, delay = 1000) {
+            try {
+                const response = await fetch(url, options);
+                if (response.status === 429 || response.status >= 500) {
+                    if (retries > 0) {
+                        await new Promise(res => setTimeout(res, delay));
+                        return fetchWithBackoff(url, options, retries - 1, delay * 2);
+                    } else {
+                        throw new Error(`API Error: ${response.status} - Too many retries.`);
+                    }
+                }
+                return response;
+            } catch (error) {
+                if (retries > 0) {
+                    await new Promise(res => setTimeout(res, delay));
+                    return fetchWithBackoff(url, options, retries - 1, delay * 2);
+                } else {
+                    throw error;
+                }
+            }
+        }
+
+    </script>
+</body>
+</html>
+
