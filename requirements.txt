@@ -1,9 +1,10 @@
-flask
-requests
-pytesseract
-pdfplumber
-spacy
-python-dotenv
-Pillow
-numpy
+pip install flask
+pip install requests
+pip install pytesseract
+pip install pdfplumber
+pip install spacy
+pip install python-dotenv
+pip install Pillow
+pip install numpy
 # spaCy model will be installed separately: e.g. python -m spacy download en_core_web_sm
+
