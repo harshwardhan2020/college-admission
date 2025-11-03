@@ -2,7 +2,7 @@ import os
 import io
 import json
 import requests
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, make_response
 from dotenv import load_dotenv
 import pdfplumber
 from PIL import Image
@@ -183,6 +183,7 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
