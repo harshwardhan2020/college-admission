@@ -24,7 +24,7 @@ nlp = spacy.load('en_core_web_sm')
 app = Flask(__name__)
 
 # New code 
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app, resources={r"/*": {"origins": "https://college-admission-8nrv.onrender.com"}})
 
 @app.route('/process', methods=['POST'])
 def process_data():
@@ -165,4 +165,5 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
