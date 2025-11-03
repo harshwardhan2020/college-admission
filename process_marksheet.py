@@ -24,7 +24,25 @@ nlp = spacy.load('en_core_web_sm')
 app = Flask(__name__)
 
 # New code 
-CORS(app, resources={r"/*": {"origins": "https://college-admission-8nrv.onrender.com"}})
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"             # allow any site
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    return response
+
+# --- Pre-flight handler for OPTIONS ---
+@app.route("/", methods=["OPTIONS"])
+@app.route("/process", methods=["OPTIONS"])
+def preflight():
+    resp = make_response()
+    resp.status_code = 200
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    return resp
 
 @app.route('/process', methods=['POST'])
 def process_data():
@@ -165,5 +183,6 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
