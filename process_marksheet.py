@@ -35,7 +35,7 @@ def add_cors_headers(response):
 
 # --- Pre-flight handler for OPTIONS ---
 @app.route("/", methods=["OPTIONS"])
-@app.route("/process", methods=["OPTIONS"])
+@app.route("/", methods=["OPTIONS"])
 def preflight():
     resp = make_response()
     resp.status_code = 200
@@ -44,7 +44,7 @@ def preflight():
     resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return resp
 
-@app.route('/process', methods=['POST'])
+@app.route('/', methods=['POST'])
 def process_data():
     data = request.get_json()
     print("Received:", data)
@@ -183,6 +183,7 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
