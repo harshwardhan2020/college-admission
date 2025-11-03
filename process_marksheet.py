@@ -9,7 +9,7 @@ from PIL import Image
 import pytesseract
 import spacy
 import re
-
+from flask_cors import CORS
 load_dotenv()
 
 SUPABASE_URL = os.getenv('SUPABASE_URL')
@@ -22,6 +22,16 @@ if not SUPABASE_URL or not SUPABASE_SERVICE_ROLE_KEY:
 nlp = spacy.load('en_core_web_sm')
 
 app = Flask(__name__)
+
+# New code 
+CORS(app, resources={r"/*": {"origins": "*"}})
+
+@app.route('/process', methods=['POST'])
+def process_data():
+    data = request.get_json()
+    print("Received:", data)
+    return jsonify({"status": "success", "message": "Backend triggered!"})
+
 
 
 def download_file(url):
@@ -155,3 +165,4 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
