@@ -26,9 +26,11 @@ nlp = spacy.load('en_core_web_sm')
 
 app = Flask(__name__)
 
-# New code 
-CORS(app, resources={r"/*": {"origins": "*"}})
+# Enable CORS globally
+from flask_cors import CORS
+CORS(app, supports_credentials=True, resources={r"/*": {"origins": "*"}})
 
+# Always include CORS headers on every response
 @app.after_request
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
@@ -36,18 +38,10 @@ def add_cors_headers(response):
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
-# --- Preflight handlers ---
+# Handle CORS preflight for all endpoints
 @app.route("/", methods=["OPTIONS"])
-def root_preflight():
-    resp = make_response()
-    resp.status_code = 200
-    resp.headers["Access-Control-Allow-Origin"] = "*"
-    resp.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
-    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
-    return resp
-
 @app.route("/process", methods=["OPTIONS"])
-def process_preflight():
+def handle_preflight():
     resp = make_response()
     resp.status_code = 200
     resp.headers["Access-Control-Allow-Origin"] = "*"
@@ -260,5 +254,6 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
