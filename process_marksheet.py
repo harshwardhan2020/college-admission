@@ -31,19 +31,28 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 
 @app.after_request
 def add_cors_headers(response):
-    response.headers["Access-Control-Allow-Origin"] = "*"             # allow any site
+    response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
     response.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return response
 
-# --- Pre-flight handler for OPTIONS ---
-@app.route('/', methods=['OPTIONS'])
+# --- Preflight handlers ---
+@app.route("/", methods=["OPTIONS"])
 def root_preflight():
     resp = make_response()
     resp.status_code = 200
     resp.headers["Access-Control-Allow-Origin"] = "*"
     resp.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
-    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"]
+    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
+    return resp
+
+@app.route("/process", methods=["OPTIONS"])
+def process_preflight():
+    resp = make_response()
+    resp.status_code = 200
+    resp.headers["Access-Control-Allow-Origin"] = "*"
+    resp.headers["Access-Control-Allow-Headers"] = "Content-Type,Authorization"
+    resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return resp
 # @app.route('/process', methods=['POST'])
 # def process():
@@ -251,4 +260,5 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
