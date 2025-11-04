@@ -128,16 +128,29 @@ def extract_text_from_pdf_bytes(b):
     except Exception as e:
         print('pdfplumber error', e)
     return ''
-
+#NEW code Replace OCR
 
 def extract_text_from_image_bytes(b):
+    """
+    Extracts text from an image using Tesseract OCR.
+    Automatically downscales large images to prevent Render memory crashes.
+    """
     try:
         img = Image.open(io.BytesIO(b)).convert('RGB')
+
+        # ✅ Step 1: Downscale very large images to fit Render’s memory limits
+        max_size = (1600, 1600)  # pixels
+        img.thumbnail(max_size, Image.LANCZOS)
+
+        # ✅ Step 2: Run OCR safely
         text = pytesseract.image_to_string(img)
+
         return text
+
     except Exception as e:
         print('pytesseract error', e)
         return ''
+
 
 
 def extract_candidate_info(text):
@@ -252,3 +265,4 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
