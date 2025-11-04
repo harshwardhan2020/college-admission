@@ -44,7 +44,7 @@ def preflight():
     resp.headers["Access-Control-Allow-Methods"] = "GET,POST,OPTIONS"
     return resp
 # NEW code 
-@app.route('/', methods=['POST'])
+@app.route('/process', methods=['POST'])
 def process():
     data = request.get_json() or {}
     submission_id = data.get('submission_id')
@@ -147,6 +147,7 @@ def process():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
 
